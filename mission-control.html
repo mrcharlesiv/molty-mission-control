@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molty Mission Control | Agent Management</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+            border-bottom: 2px solid #58a6ff;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            color: #58a6ff;
+            font-size: 1.5rem;
+        }
+        .header-stats {
+            display: flex;
+            gap: 2rem;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #3fb950;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #8b949e;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 1rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #8b949e;
+        }
+        .error {
+            background: rgba(218,54,51,0.1);
+            border: 1px solid #da3633;
+            color: #f85149;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .agents-panel {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .panel-header h2 {
+            color: #f0f6fc;
+            font-size: 1.2rem;
+        }
+        .refresh-btn {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .refresh-btn:hover {
+            background: #2ea043;
+        }
+        .refresh-btn:disabled {
+            background: #30363d;
+            cursor: not-allowed;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .filter-btn.active {
+            background: #58a6ff;
+            color: #0d1117;
+            border-color: #58a6ff;
+        }
+        .agent-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .agent-card {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .agent-card:hover {
+            border-color: #58a6ff;
+        }
+        .agent-card.selected {
+            border-color: #58a6ff;
+            background: rgba(88,166,255,0.1);
+        }
+        .agent-card.error {
+            border-color: #da3633;
+        }
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+        .agent-name {
+            font-weight: 600;
+            color: #f0f6fc;
+            font-size: 0.95rem;
+            word-break: break-all;
+        }
+        .agent-kind {
+            font-size: 0.75rem;
+            color: #8b949e;
+            background: #21262d;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+        .agent-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.8rem;
+            color: #8b949e;
+            flex-wrap: wrap;
+        }
+        .model-badge {
+            background: rgba(88,166,255,0.2);
+            color: #58a6ff;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .control-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .control-card h3 {
+            color: #f0f6fc;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            color: #8b949e;
+            font-size: 0.85rem;
+            margin-bottom: 0.4rem;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 0.6rem;
+            color: #c9d1d9;
+            font-size: 0.9rem;
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .btn-primary {
+            background: #238636;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2ea043;
+        }
+        .btn-primary:disabled {
+            background: #30363d;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+        }
+        .btn-secondary:hover {
+            background: #30363d;
+        }
+        .btn-danger {
+            background: #da3633;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #f85149;
+        }
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .selected-info {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid #21262d;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            color: #8b949e;
+        }
+        .info-value {
+            color: #f0f6fc;
+            font-family: monospace;
+            font-size: 0.8rem;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.4rem;
+        }
+        .status-active { background: #3fb950; }
+        .status-idle { background: #8b949e; }
+        .status-error { background: #f85149; }
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #8b949e;
+        }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 1000;
+        }
+        .toast.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success {
+            background: #238636;
+            color: white;
+        }
+        .toast.error {
+            background: #da3633;
+            color: white;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .api-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            background: #21262d;
+        }
+        .api-status.connected {
+            background: rgba(35,134,54,0.2);
+            color: #3fb950;
+        }
+        .api-status.disconnected {
+            background: rgba(218,54,51,0.2);
+            color: #f85149;
+        }
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>🎛️ Molty Mission Control</h1>
+            <div style="margin-top: 0.5rem;">
+                <span class="api-status disconnected" id="api-status">
+                    <span class="status-indicator status-error"></span>
+                    API: Checking...
+                </span>
+            </div>
+        </div>
+        <div class="header-stats">
+            <div class="stat">
+                <div class="stat-value" id="total-agents">-</div>
+                <div class="stat-label">Total Agents</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="active-agents">-</div>
+                <div class="stat-label">Active</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="cron-jobs">-</div>
+                <div class="stat-label">Cron Jobs</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="agents-panel">
+            <div class="panel-header">
+                <h2>🤖 Active Agents</h2>
+                <button class="refresh-btn" id="refresh-btn" onclick="loadAgents()">🔄 Refresh</button>
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+                <button class="filter-btn" data-filter="subagent" onclick="setFilter('subagent')">Sub-Agents</button>
+                <button class="filter-btn" data-filter="cron" onclick="setFilter('cron')">Cron Jobs</button>
+                <button class="filter-btn" data-filter="main" onclick="setFilter('main')">Main</button>
+            </div>
+            <div id="error-container"></div>
+            <div class="agent-list" id="agent-list">
+                <div class="loading">Loading agents...</div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="control-card">
+                <h3>📡 Agent Communication</h3>
+                <div id="no-selection" class="empty-state">
+                    Select an agent to communicate
+                </div>
+                <div id="communication-panel" style="display: none;">
+                    <div class="selected-info">
+                        <div class="info-row">
+                            <span class="info-label">Name:</span>
+                            <span class="info-value" id="sel-name">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Session Key:</span>
+                            <span class="info-value" id="sel-key">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Model:</span>
+                            <span class="info-value" id="sel-model">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Tokens:</span>
+                            <span class="info-value" id="sel-tokens">-</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Message to Agent</label>
+                        <textarea id="agent-message" placeholder="Enter instructions for the selected agent..."></textarea>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" id="send-btn" onclick="sendMessage()">📤 Send Message</button>
+                        <button class="btn btn-secondary" onclick="viewHistory()">📜 History</button>
+                        <button class="btn btn-danger" onclick="killAgent()">💀 Kill Agent</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-card">
+                <h3>⚙️ Model Control</h3>
+                <div id="model-no-selection" class="empty-state">
+                    Select an agent to configure
+                </div>
+                <div id="model-panel" style="display: none;">
+                    <div class="form-group">
+                        <label>Current Model</label>
+                        <select id="model-select">
+                            <option value="kimi-k2.5">Kimi K2.5</option>
+                            <option value="kimi-k2-0905-preview">Kimi K2</option>
+                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
+                            <option value="claude-opus-4-5">Claude Opus 4.5</option>
+                            <option value="auto">Auto (Fallback)</option>
+                        </select>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" onclick="updateModel()">💾 Update Model</button>
+                    </div>
+                    <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #8b949e;">
+                        Note: Model changes may require agent restart
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-card">
+                <h3>🚨 Emergency Controls</h3>
+                <div class="btn-row">
+                    <button class="btn btn-danger" onclick="killAllAgents()">💀 Kill All</button>
+                    <button class="btn btn-secondary" onclick="restartGateway()">🔄 Restart Gateway</button>
+                </div>
+            </div>
+
+            <div class="control-card">
+                <h3>➕ Spawn New Agent</h3>
+                <div class="form-group">
+                    <label>Task Description</label>
+                    <textarea id="spawn-task" placeholder="Describe what the agent should do..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Label (optional)</label>
+                    <input type="text" id="spawn-label" placeholder="my-custom-agent">
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="spawn-model">
+                        <option value="kimi-k2.5">Kimi K2.5</option>
+                        <option value="kimi-k2-0905-preview">Kimi K2</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
+                        <option value="auto">Auto</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="spawnAgent()">🚀 Spawn Agent</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let agents = [];
+        let selectedAgent = null;
+        let currentFilter = 'all';
+
+        // Check API connectivity
+        async function checkApiStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                const statusEl = document.getElementById('api-status');
+                if (data.success) {
+                    statusEl.className = 'api-status connected';
+                    statusEl.innerHTML = '<span class="status-indicator status-active"></span>API: Connected';
+                } else {
+                    statusEl.className = 'api-status disconnected';
+                    statusEl.innerHTML = '<span class="status-indicator status-error"></span>API: Error';
+                }
+            } catch (error) {
+                const statusEl = document.getElementById('api-status');
+                statusEl.className = 'api-status disconnected';
+                statusEl.innerHTML = '<span class="status-indicator status-error"></span>API: Offline';
+            }
+        }
+
+        // Load agents from API
+        async function loadAgents() {
+            const btn = document.getElementById('refresh-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Loading...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/agents`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    agents = data.agents || [];
+                    renderAgents();
+                    updateStats();
+                    showError(null);
+                } else {
+                    showError(data.error || 'Failed to load agents');
+                }
+            } catch (error) {
+                showError('API Error: ' + error.message);
+                console.error('Load agents error:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 Refresh';
+            }
+        }
+
+        // Render agent list
+        function renderAgents() {
+            const list = document.getElementById('agent-list');
+            
+            const filtered = agents.filter(a => {
+                if (currentFilter === 'all') return true;
+                if (a.kind === 'other' && currentFilter === 'subagent') {
+                    return a.key.includes('subagent');
+                }
+                if (currentFilter === 'cron') {
+                    return a.key.includes('cron');
+                }
+                if (currentFilter === 'main') {
+                    return a.key.includes(':main:main');
+                }
+                return false;
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="empty-state">No agents found</div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map(agent => {
+                const isSelected = selectedAgent?.key === agent.key;
+                const agentKind = getAgentKind(agent);
+                const hasError = agent.abortedLastRun;
+                
+                return `
+                    <div class="agent-card ${isSelected ? 'selected' : ''} ${hasError ? 'error' : ''}" 
+                         onclick="selectAgent('${agent.key}')">
+                        <div class="agent-header">
+                            <span class="agent-name">${agent.displayName || agent.label || agent.key.split(':').pop()}</span>
+                            <span class="agent-kind">${agentKind}</span>
+                        </div>
+                        <div class="agent-meta">
+                            ${agent.model ? `<span class="model-badge">${agent.model}</span>` : ''}
+                            <span>${formatTokens(agent.totalTokens)} tokens</span>
+                            ${agent.channel ? `<span>📱 ${agent.channel}</span>` : ''}
+                            ${hasError ? '<span style="color: #f85149;">⚠️ Error</span>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getAgentKind(agent) {
+            if (agent.key.includes(':main:main')) return 'Main';
+            if (agent.key.includes('subagent')) return 'Sub-Agent';
+            if (agent.key.includes('cron')) return 'Cron';
+            return agent.kind || 'Unknown';
+        }
+
+        function formatTokens(tokens) {
+            if (!tokens) return '0';
+            if (tokens >= 1000000) return (tokens / 1000000).toFixed(1) + 'M';
+            if (tokens >= 1000) return (tokens / 1000).toFixed(1) + 'K';
+            return tokens.toString();
+        }
+
+        function updateStats() {
+            document.getElementById('total-agents').textContent = agents.length;
+            document.getElementById('active-agents').textContent = agents.filter(a => !a.abortedLastRun).length;
+            document.getElementById('cron-jobs').textContent = agents.filter(a => a.key.includes('cron')).length;
+        }
+
+        function selectAgent(key) {
+            selectedAgent = agents.find(a => a.key === key);
+            renderAgents();
+            updateControlPanel();
+        }
+
+        function updateControlPanel() {
+            const noComm = document.getElementById('no-selection');
+            const commPanel = document.getElementById('communication-panel');
+            const noModel = document.getElementById('model-no-selection');
+            const modelPanel = document.getElementById('model-panel');
+
+            if (selectedAgent) {
+                noComm.style.display = 'none';
+                commPanel.style.display = 'block';
+                noModel.style.display = 'none';
+                modelPanel.style.display = 'block';
+
+                document.getElementById('sel-name').textContent = selectedAgent.displayName || selectedAgent.label || 'Unnamed';
+                document.getElementById('sel-key').textContent = selectedAgent.key;
+                document.getElementById('sel-model').textContent = selectedAgent.model || 'default';
+                document.getElementById('sel-tokens').textContent = formatTokens(selectedAgent.totalTokens);
+
+                if (selectedAgent.model) {
+                    document.getElementById('model-select').value = selectedAgent.model;
+                }
+            } else {
+                noComm.style.display = 'block';
+                commPanel.style.display = 'none';
+                noModel.style.display = 'block';
+                modelPanel.style.display = 'none';
+            }
+        }
+
+        async function sendMessage() {
+            if (!selectedAgent) return;
+            
+            const message = document.getElementById('agent-message').value;
+            if (!message.trim()) {
+                showToast('Please enter a message', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Sending...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(selectedAgent.key)}/message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, timeout: 60 })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Message sent successfully');
+                    document.getElementById('agent-message').value = '';
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📤 Send Message';
+            }
+        }
+
+        async function viewHistory() {
+            if (!selectedAgent) return;
+            showToast('History view - implement modal or redirect', 'error');
+        }
+
+        async function killAgent() {
+            if (!selectedAgent) return;
+            if (!confirm(`Kill agent "${selectedAgent.displayName || selectedAgent.key}"?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(selectedAgent.key)}/kill`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Agent killed');
+                    selectedAgent = null;
+                    updateControlPanel();
+                    loadAgents();
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function updateModel() {
+            if (!selectedAgent) return;
+            
+            const model = document.getElementById('model-select').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(selectedAgent.key)}/model`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast(data.message || 'Model update requested');
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function killAllAgents() {
+            if (!confirm('⚠️ WARNING: This will terminate ALL agents. Are you sure?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/emergency/kill-all`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast(`Killed ${data.count} agents`);
+                    loadAgents();
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function restartGateway() {
+            if (!confirm('🔄 Restart the OpenClaw gateway?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/emergency/restart-gateway`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Gateway restart initiated');
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function spawnAgent() {
+            const task = document.getElementById('spawn-task').value;
+            const label = document.getElementById('spawn-label').value;
+            const model = document.getElementById('spawn-model').value;
+            
+            if (!task.trim()) {
+                showToast('Please enter a task description', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/agents/spawn`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task, label, model, timeout: 3600 })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Agent spawned successfully');
+                    document.getElementById('spawn-task').value = '';
+                    document.getElementById('spawn-label').value = '';
+                    loadAgents();
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            renderAgents();
+        }
+
+        function showError(message) {
+            const container = document.getElementById('error-container');
+            if (message) {
+                container.innerHTML = `<div class="error">${message}</div>`;
+            } else {
+                container.innerHTML = '';
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Initialize
+        checkApiStatus();
+        loadAgents();
+        setInterval(checkApiStatus, 30000); // Check API status every 30s
+    </script>
+</body>
+</html>
